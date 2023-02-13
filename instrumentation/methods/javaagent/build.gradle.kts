@@ -11,6 +11,7 @@ muzzle {
 dependencies {
   compileOnly(project(":javaagent-tooling"))
   compileOnly(project(":instrumentation-annotations-support"))
+  compileOnly("io.opentelemetry:opentelemetry-sdk")
 }
 
 tasks.withType<Test>().configureEach {

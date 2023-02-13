@@ -20,7 +20,10 @@ final class DefaultSpanStatusExtractor<REQUEST, RESPONSE>
       @Nullable RESPONSE response,
       @Nullable Throwable error) {
 
-    if (error != null) {
+    if (error != null 
+    && !error.getClass().getName().contains("NoCheckException") 
+    && !error.getClass().getName().contains("AsyncRequestTimeoutException") 
+    && !error.getClass().getName().contains("ClientAbortException")) {
       spanStatusBuilder.setStatus(StatusCode.ERROR);
     }
   }

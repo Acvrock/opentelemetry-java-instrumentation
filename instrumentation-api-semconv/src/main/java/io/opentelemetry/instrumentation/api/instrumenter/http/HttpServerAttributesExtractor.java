@@ -11,6 +11,7 @@ import static io.opentelemetry.instrumentation.api.instrumenter.http.ForwardedHe
 import static io.opentelemetry.instrumentation.api.instrumenter.http.ForwardedHeaderParser.extractProtoFromForwardedProtoHeader;
 import static io.opentelemetry.instrumentation.api.internal.AttributesExtractorUtil.internalSet;
 
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.instrumentation.api.instrumenter.net.NetServerAttributesGetter;
@@ -116,9 +117,50 @@ public final class HttpServerAttributesExtractor<REQUEST, RESPONSE>
     internalSet(attributes, SemanticAttributes.HTTP_TARGET, getter.target(request));
     internalSet(attributes, SemanticAttributes.HTTP_ROUTE, getter.route(request));
     internalSet(attributes, SemanticAttributes.HTTP_CLIENT_IP, clientIp(request));
+    setUserOaUid(attributes,request);
+    setReqId(attributes,request);
 
     InternalNetServerAttributesExtractor.onStart(
         netAttributesGetter, attributes, request, host(request));
+  }
+
+
+  public static final AttributeKey<String> OA_UID = AttributeKey.stringKey("http.oa_uid");
+  public static final AttributeKey<String> R_UID = AttributeKey.stringKey("http.uid");
+  public static final AttributeKey<String> X_REQID = AttributeKey.stringKey("http.x_request_id");
+
+  private void setReqId(AttributesBuilder attributes, REQUEST request) {
+    String reqId = firstHeaderValue(getter.requestHeader(request, "x-request-id"));
+    if (reqId == null || reqId.length() < 1) {
+      return;
+    }
+    internalSet(attributes, X_REQID, reqId);
+  }
+
+  private void setUserOaUid(AttributesBuilder attributes, REQUEST request) {
+    String cookie = firstHeaderValue(getter.requestHeader(request, "cookie"));
+    if (cookie == null || cookie.length() < 1) {
+      return;
+    }
+    String[] tokens = cookie.split("; ");
+
+    int findNum = 0;
+    for (String token : tokens) {
+      int i = token.indexOf('=');
+      if (i > 0 && i < token.length()) {
+        String name = token.substring(0, i).trim();
+        if ("uid".equals(name)) {
+          internalSet(attributes, OA_UID, token.substring(i + 1).trim());
+          findNum = findNum + 1;
+        } else if ("r_udb_uid".equals(name)) {
+          internalSet(attributes, R_UID, token.substring(i + 1).trim());
+          findNum = findNum + 1;
+        }
+      }
+      if (findNum == 2) {
+        return;
+      }
+    }
   }
 
   @Override
